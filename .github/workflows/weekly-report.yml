@@ -1,0 +1,69 @@
+name: Report social settimanale
+
+on:
+  schedule:
+    # GitHub Actions usa solo UTC: 08:00 a Roma sono le 06:00 UTC con l'ora
+    # legale e le 07:00 UTC con l'ora solare. Programmiamo entrambi gli orari e
+    # lo step "orario locale" lascia proseguire solo quello giusto.
+    - cron: "0 6 * * 5"
+    - cron: "0 7 * * 5"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Stampa il report nei log senza inviarlo su Telegram"
+        type: boolean
+        default: false
+
+concurrency:
+  group: report-social-settimanale
+  cancel-in-progress: false
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      REPORT_TIMEZONE: ${{ vars.REPORT_TIMEZONE || 'Europe/Rome' }}
+    steps:
+      - name: Verifica l'orario locale
+        id: orario
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "esegui=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          ora_locale=$(TZ="$REPORT_TIMEZONE" date +%H)
+          echo "Ora corrente in $REPORT_TIMEZONE: $ora_locale"
+          if [ "$ora_locale" = "08" ]; then
+            echo "esegui=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Non sono le 08:00 locali: questa esecuzione viene saltata."
+            echo "esegui=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.orario.outputs.esegui == 'true'
+
+      - uses: actions/setup-python@v5
+        if: steps.orario.outputs.esegui == 'true'
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Installa le dipendenze
+        if: steps.orario.outputs.esegui == 'true'
+        run: pip install -r requirements.txt
+
+      - name: Genera e invia il report
+        if: steps.orario.outputs.esegui == 'true'
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          META_GRAPH_VERSION: ${{ vars.META_GRAPH_VERSION }}
+          REPORT_DAYS: ${{ vars.REPORT_DAYS }}
+        run: |
+          python -m report_social ${{ inputs.dry_run && '--dry-run' || '' }}
