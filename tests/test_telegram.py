@@ -90,3 +90,21 @@ def test_il_token_non_finisce_nel_corpo_della_richiesta(monkeypatch, no_sleep):
     send_message("segretissimo", "-100", "ciao")
 
     assert "segretissimo" not in str(session.requests[0])
+
+
+def test_topic_incluso_solo_se_configurato(monkeypatch, no_sleep):
+    session = FakeSession([FakeResponse({"ok": True})])
+    monkeypatch.setattr(telegram.requests, "Session", lambda: session)
+
+    send_message("bot-token", "-1001234567890", "ciao", "42")
+
+    assert session.requests[0]["message_thread_id"] == "42"
+
+
+def test_senza_topic_il_campo_non_viene_inviato(monkeypatch, no_sleep):
+    session = FakeSession([FakeResponse({"ok": True})])
+    monkeypatch.setattr(telegram.requests, "Session", lambda: session)
+
+    send_message("bot-token", "-1001234567890", "ciao")
+
+    assert "message_thread_id" not in session.requests[0]

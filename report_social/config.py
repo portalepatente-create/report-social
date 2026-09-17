@@ -48,6 +48,7 @@ class Config:
     meta_access_token: str
     telegram_bot_token: str
     telegram_chat_id: str
+    telegram_message_thread_id: str | None = None
     facebook_page_id: str | None = None
     instagram_account_id: str | None = None
     graph_version: str = DEFAULT_GRAPH_VERSION
@@ -88,6 +89,7 @@ class Config:
             meta_access_token=_env("META_ACCESS_TOKEN"),  # type: ignore[arg-type]
             telegram_bot_token=_env("TELEGRAM_BOT_TOKEN"),  # type: ignore[arg-type]
             telegram_chat_id=_env("TELEGRAM_CHAT_ID"),  # type: ignore[arg-type]
+            telegram_message_thread_id=_env("TELEGRAM_MESSAGE_THREAD_ID"),
             facebook_page_id=facebook_page_id,
             instagram_account_id=instagram_account_id,
             graph_version=_env("META_GRAPH_VERSION", DEFAULT_GRAPH_VERSION) or DEFAULT_GRAPH_VERSION,

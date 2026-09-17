@@ -69,7 +69,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     try:
-        send_message(config.telegram_bot_token, config.telegram_chat_id, message)
+        send_message(
+            config.telegram_bot_token,
+            config.telegram_chat_id,
+            message,
+            config.telegram_message_thread_id,
+        )
     except TelegramError as exc:
         LOGGER.error("%s", exc)
         return 1

@@ -67,21 +67,29 @@ def _split_block(block: str, limit: int) -> list[str]:
     return chunks
 
 
-def send_message(bot_token: str, chat_id: str, text: str) -> None:
-    """Invia il testo alla chat, spezzandolo se supera il limite di Telegram."""
+def send_message(
+    bot_token: str,
+    chat_id: str,
+    text: str,
+    message_thread_id: str | None = None,
+) -> None:
+    """Invia il testo alla chat, spezzandolo se supera il limite di Telegram.
+
+    `message_thread_id` serve solo per i supergruppi con i Topic attivi: senza,
+    il messaggio finisce nel topic "General".
+    """
     url = f"{API_BASE}/bot{bot_token}/sendMessage"
     session = requests.Session()
     for chunk in split_message(text):
-        _post(
-            session,
-            url,
-            {
-                "chat_id": chat_id,
-                "text": chunk,
-                "parse_mode": "HTML",
-                "disable_web_page_preview": True,
-            },
-        )
+        payload = {
+            "chat_id": chat_id,
+            "text": chunk,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+        }
+        if message_thread_id:
+            payload["message_thread_id"] = message_thread_id
+        _post(session, url, payload)
 
 
 def _post(session: requests.Session, url: str, payload: dict) -> None:

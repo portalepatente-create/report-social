@@ -25,6 +25,7 @@ def clean_env(monkeypatch):
         "REPORT_DAYS",
         "META_GRAPH_VERSION",
         "DRY_RUN",
+        "TELEGRAM_MESSAGE_THREAD_ID",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -90,3 +91,11 @@ def test_finestra_esclude_il_giorno_in_corso(monkeypatch):
     _, end = report_window(config, venerdi)
 
     assert end.day == 18 and end.hour == 0
+
+
+def test_topic_del_supergruppo_opzionale(monkeypatch):
+    _set(monkeypatch)
+    assert Config.from_env().telegram_message_thread_id is None
+
+    monkeypatch.setenv("TELEGRAM_MESSAGE_THREAD_ID", "42")
+    assert Config.from_env().telegram_message_thread_id == "42"

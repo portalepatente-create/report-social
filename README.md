@@ -49,6 +49,7 @@ nei *Secrets* del repository.
 | `INSTAGRAM_ACCOUNT_ID` | ID dell'account Instagram Business collegato |
 | `TELEGRAM_BOT_TOKEN` | Te lo dà @BotFather su Telegram |
 | `TELEGRAM_CHAT_ID` | ID della chat dove ricevere il report |
+| `TELEGRAM_MESSAGE_THREAD_ID` | *(facoltativo)* topic di un supergruppo forum |
 
 Serve almeno uno tra `FACEBOOK_PAGE_ID` e `INSTAGRAM_ACCOUNT_ID`: se ne compili
 solo uno, il report riguarderà solo quella piattaforma.
@@ -56,17 +57,54 @@ solo uno, il report riguarderà solo quella piattaforma.
 ### 1. Il bot Telegram
 
 1. Su Telegram apri una chat con **@BotFather** e manda `/newbot`.
-2. Scegli nome e username: BotFather risponde con il token
-   (`123456789:AAE...`) → è il tuo `TELEGRAM_BOT_TOKEN`.
-3. Manda un messaggio qualsiasi al bot appena creato (un bot non può scriverti
-   per primo se non gli hai mai parlato).
-4. Per ricavare `TELEGRAM_CHAT_ID`, apri nel browser:
-   `https://api.telegram.org/bot<IL_TUO_TOKEN>/getUpdates` e leggi
-   `"chat":{"id": ...}`.
+2. Scegli nome e username: BotFather risponde con il token, nella forma
+   `123456789:AAEabcDEF...` → è il tuo `TELEGRAM_BOT_TOKEN`.
 
-Se preferisci ricevere il report in un **gruppo**, aggiungi il bot al gruppo,
-scrivi un messaggio lì e rileggi `getUpdates`: l'id del gruppo è negativo
-(es. `-1001234567890`).
+Per ricavare `TELEGRAM_CHAT_ID` serve prima un messaggio che il bot possa
+vedere, poi si legge l'elenco degli aggiornamenti.
+
+**Se vuoi il report in chat privata**, scrivi `/start` al bot appena creato (un
+bot non può scriverti per primo se non gli hai mai parlato).
+
+**Se vuoi il report in un gruppo o supergruppo**, aggiungi il bot al gruppo e lì
+manda `/start@nomedeltuobot`. Il comando con la menzione è importante: per
+impostazione predefinita i bot nei gruppi hanno la *privacy mode* attiva e non
+vedono i messaggi normali, quindi un "ciao" qualsiasi non produrrebbe alcun
+aggiornamento e sembrerebbe che non funzioni nulla.
+
+Poi apri nel browser:
+
+```
+https://api.telegram.org/bot123456789:AAEabcDEF.../getUpdates
+```
+
+> ⚠️ Sostituisci **tutto** `123456789:AAEabcDEF...` con il tuo token. La parola
+> `bot` all'inizio va lasciata e il token le va attaccato, senza spazi e senza
+> parentesi di alcun tipo. Se sbagli questa parte Telegram risponde
+> `{"ok":false,"error_code":401,"description":"Unauthorized"}`: il 401 significa
+> quasi sempre "token non valido", non "permesso negato".
+
+Nella risposta cerca `"chat":{"id": ...}`: quel numero è `TELEGRAM_CHAT_ID`.
+È **positivo** per una chat privata e **negativo** per gruppi e canali; i
+supergruppi iniziano per `-100` (es. `-1001234567890`).
+
+Se `getUpdates` restituisce `{"ok":true,"result":[]}`, il bot non ha ancora
+ricevuto nulla: rimanda `/start` e ricarica. Gli aggiornamenti restano
+disponibili circa 24 ore.
+
+#### Supergruppi con i Topic
+
+Se il supergruppo ha i **Topic** attivi (la modalità forum), senza altre
+indicazioni il report finisce nel topic *General*. Per mandarlo in un topic
+preciso, scrivi `/start@nomedeltuobot` dentro quel topic e cerca
+`"message_thread_id"` nella risposta di `getUpdates`: quel valore va in
+`TELEGRAM_MESSAGE_THREAD_ID` (è una *variabile*, non un secret: non è
+un'informazione riservata).
+
+Due avvertenze sui gruppi: se un gruppo normale viene promosso a supergruppo
+**l'id cambia** e il report smette di arrivare, quindi conviene creare il
+supergruppo prima di leggere l'id; e il bot deve restare nel gruppo, altrimenti
+Telegram risponde `403 bot was kicked`.
 
 ### 2. Il token di Meta
 
@@ -103,8 +141,8 @@ Su GitHub: **Settings → Secrets and variables → Actions → New repository
 secret**, uno per ciascuna delle cinque variabili della tabella.
 
 Opzionalmente, nella scheda **Variables** puoi impostare `REPORT_TIMEZONE`
-(default `Europe/Rome`), `REPORT_DAYS` (default `7`) e `META_GRAPH_VERSION`
-(default `v21.0`).
+(default `Europe/Rome`), `REPORT_DAYS` (default `7`), `META_GRAPH_VERSION`
+(default `v21.0`) e `TELEGRAM_MESSAGE_THREAD_ID` (topic del supergruppo).
 
 ## Come gira
 
