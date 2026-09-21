@@ -108,3 +108,41 @@ def test_orario_convertito_nel_fuso_locale():
     report = PlatformReport(platform="Instagram", posts=[post])
 
     assert "ven 18/09" in build_message([report], START, END, TZ)
+
+
+def test_piattaforma_aggregata_mostra_le_metriche_e_non_l_elenco():
+    report = PlatformReport(
+        platform="Facebook",
+        followers=4321,
+        posts_available=False,
+        aggregate_impressions=2200,
+        aggregate_reach=1700,
+        aggregate_engagement=100,
+    )
+
+    messaggio = build_message([report], START, END, TZ)
+
+    assert "4.321 follower" in messaggio
+    assert "2.200 impression" in messaggio
+    assert "1.700 copertura" in messaggio
+    assert "100 interazioni" in messaggio
+    assert "Dettaglio dei singoli post non disponibile" in messaggio
+    assert "Nessun post pubblicato" not in messaggio
+
+
+def test_piattaforma_aggregata_senza_dati_lo_dichiara():
+    report = PlatformReport(platform="Facebook", posts_available=False)
+
+    messaggio = build_message([report], START, END, TZ)
+
+    assert "Dati non disponibili per questo periodo." in messaggio
+
+
+def test_totale_include_l_engagement_aggregato():
+    ig = PlatformReport(platform="Instagram", posts=[_post(likes=10, comments=1)])
+    fb = PlatformReport(platform="Facebook", posts_available=False, aggregate_engagement=50)
+
+    messaggio = build_message([ig, fb], START, END, TZ)
+
+    assert "Totale:" in messaggio
+    assert "61 interazioni" in messaggio  # 11 (ig) + 50 (fb aggregato)

@@ -8,35 +8,26 @@ START = datetime(2026, 9, 11, tzinfo=timezone.utc)
 END = datetime(2026, 9, 18, tzinfo=timezone.utc)
 
 
-def test_facebook_compone_le_statistiche_del_post():
+def test_facebook_legge_le_insight_aggregate_della_pagina():
     client = FakeGraphClient(
         {
-            "page_1/published_posts": {
+            "page_1": {"followers_count": 4321},
+            "page_1/insights": {
                 "data": [
                     {
-                        "id": "post_1",
-                        "message": "Nuovo corso di guida sicura",
-                        "created_time": "2026-09-12T10:00:00+0000",
-                        "permalink_url": "https://facebook.com/post_1",
-                        "shares": {"count": 6},
-                        "likes": {"summary": {"total_count": 40}},
-                        "comments": {"summary": {"total_count": 7}},
-                        "attachments": {"data": [{"media_type": "photo"}]},
-                    }
-                ]
-            },
-            "post_1/insights": {
-                "data": [
-                    {"name": "post_impressions", "values": [{"value": 2000}]},
-                    {"name": "post_impressions_unique", "values": [{"value": 1500}]},
-                    {"name": "post_clicks", "values": [{"value": 90}]},
+                        "name": "page_impressions",
+                        "values": [{"value": 1000}, {"value": 1200}],
+                    },
                     {
-                        "name": "post_reactions_by_type_total",
-                        "values": [{"value": {"like": 38, "love": 4}}],
+                        "name": "page_impressions_unique",
+                        "values": [{"value": 800}, {"value": 900}],
+                    },
+                    {
+                        "name": "page_post_engagements",
+                        "values": [{"value": 60}, {"value": 40}],
                     },
                 ]
             },
-            "page_1": {"followers_count": 4321},
         }
     )
 
@@ -44,59 +35,57 @@ def test_facebook_compone_le_statistiche_del_post():
 
     assert report.error is None
     assert report.followers == 4321
-    (post,) = report.posts
-    assert post.likes == 42  # le reazioni totali battono il conteggio dei soli "mi piace"
-    assert post.comments == 7
-    assert post.shares == 6
-    assert post.reach == 1500
-    assert post.impressions == 2000
-    assert post.clicks == 90
-    assert post.interactions == 55
-    assert post.media_type == "photo"
+    assert report.posts_available is False
+    assert report.posts == []
+    assert report.aggregate_impressions == 2200
+    assert report.aggregate_reach == 1700
+    assert report.aggregate_engagement == 100
 
 
-def test_facebook_scarta_i_post_fuori_finestra():
+def test_facebook_metrica_non_disponibile_resta_a_none():
     client = FakeGraphClient(
         {
-            "page_1/published_posts": {
+            "page_1": {"followers_count": 10},
+            "page_1/insights": {
                 "data": [
-                    {
-                        "id": "vecchio",
-                        "message": "settimana scorsa",
-                        "created_time": "2026-09-10T23:59:00+0000",
-                    },
-                    {
-                        "id": "futuro",
-                        "message": "oggi",
-                        "created_time": "2026-09-18T07:00:00+0000",
-                    },
+                    {"name": "page_impressions", "values": [{"value": 500}]},
                 ]
             },
-            "page_1": {"followers_count": 10},
         }
     )
 
     report = facebook.collect(client, "page_1", START, END)
 
-    assert report.posts == []
+    assert report.aggregate_impressions == 500
+    assert report.aggregate_reach is None
+    assert report.aggregate_engagement is None
 
 
-def test_facebook_registra_l_errore_senza_sollevarlo():
+def test_facebook_insight_fallite_degradano_senza_errore():
+    # _followers e fetch_insights gestiscono da soli i propri errori: un
+    # problema sulle insight aggregate non fa fallire l'intera raccolta,
+    # semplicemente le metriche restano assenti (report.error resta None).
     client = FakeGraphClient(
-        {"page_1/published_posts": GraphAPIError("token scaduto", code=190)}
+        {
+            "page_1": {"followers_count": 10},
+            "page_1/insights": GraphAPIError("token scaduto", code=190),
+        }
     )
 
     report = facebook.collect(client, "page_1", START, END)
 
-    assert report.posts == []
-    assert "token scaduto" in report.error
+    assert report.error is None
+    assert report.followers == 10
+    assert report.aggregate_impressions is None
+    assert report.aggregate_reach is None
+    assert report.aggregate_engagement is None
 
 
 def test_facebook_senza_follower_non_fallisce():
     client = FakeGraphClient(
         {
-            "page_1/published_posts": {"data": []},
             "page_1": GraphAPIError("permesso mancante"),
+            "page_1/insights": {"data": []},
         }
     )
 

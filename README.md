@@ -23,19 +23,19 @@ parziale e falserebbe i confronti.
   👍 88 · 💬 5 · 🔁 4 · 🔖 12 · 👀 1.430 · ER 7.6%
 
 📘 Facebook — 4.321 follower
-1 post · 👍 42 · 💬 7 · 🔁 6 · 👀 1.512 copertura
+📈 8.400 impression · 👀 6.100 copertura · 👍 210 interazioni
+Dettaglio dei singoli post non disponibile per questa piattaforma.
 
-• sab 12/09 Guida sicura: il nostro corso gratuito di ottobre
-  👍 42 · 💬 7 · 🔁 6 · 👀 1.512 · ER 3.6%
-
-✨ Totale: 3 post · 493 interazioni
+✨ Totale: 2 post · 512 interazioni
 
 🏆 Post migliore (Instagram): Nuovo quiz patente B — 329 interazioni
 ```
 
 Legenda: 👍 like/reazioni · 💬 commenti · 🔁 condivisioni · 🔖 salvataggi ·
-👀 copertura (persone raggiunte) · ▶️ visualizzazioni video ·
-**ER** = interazioni ÷ copertura, in percentuale.
+👀 copertura (persone raggiunte) · 📈 impression · ▶️ visualizzazioni video ·
+**ER** = interazioni ÷ copertura, in percentuale. Per Facebook vengono
+mostrate solo le statistiche aggregate della settimana, non i singoli post —
+il perché è spiegato in [Limiti noti](#limiti-noti).
 
 ## Cosa serve configurare
 
@@ -109,31 +109,55 @@ Telegram risponde `403 bot was kicked`.
 ### 2. Il token di Meta
 
 Le statistiche dei post non sono pubbliche: servono un'app Meta e un token
-della Pagina.
+che dia accesso alla Pagina. La via più affidabile per uno script automatico
+come questo è un **Utente di sistema** del Business Manager: a differenza di
+un token legato al tuo account personale, non dipende dalla tua sessione e
+può essere generato per **non scadere mai**.
 
-1. Su [developers.facebook.com](https://developers.facebook.com/apps) crea
-   un'app di tipo **Business**.
-2. Apri il **Graph API Explorer**, seleziona l'app e chiedi questi permessi:
-   `pages_read_engagement`, `pages_show_list`, `read_insights`,
-   `instagram_basic`, `instagram_manage_insights`.
-3. Genera il token, poi passa da *User Token* a **Page Token** scegliendo la tua
-   Pagina: quello è `META_ACCESS_TOKEN`.
-4. `FACEBOOK_PAGE_ID` compare nella stessa schermata; in alternativa lo trovi
-   interrogando `me/accounts`.
-5. `INSTAGRAM_ACCOUNT_ID` si ottiene con la chiamata
-   `<FACEBOOK_PAGE_ID>?fields=instagram_business_account`.
-
-> **Nota sulla scadenza.** I token generati dall'Explorer durano circa un'ora.
-> Scambiane uno con un token di lunga durata (60 giorni) con
-> `GET /oauth/access_token?grant_type=fb_exchange_token&client_id=<APP_ID>&client_secret=<APP_SECRET>&fb_exchange_token=<TOKEN>`,
-> poi usa quel token per generare un **Page Token**, che non scade finché non
-> revochi i permessi o cambi password. Se il report smette di arrivare, la causa
-> più probabile è il token: il messaggio lo dice esplicitamente
-> ("⚠️ Dati non recuperati").
+1. Su [developers.facebook.com/apps](https://developers.facebook.com/apps)
+   crea un'app, scegliendo come casi d'uso **"Gestisci tutto sulla tua
+   Pagina"** e **"Gestisci i messaggi e i contenuti su Instagram"** (con
+   quest'ultimo scegli il percorso **"API setup with Facebook login"**, non
+   quello con login Instagram diretto — solo il primo espone le statistiche).
+2. Dentro l'app, per ciascuno dei due casi d'uso, apri **"Personalizza"** →
+   **"Autorizzazioni e funzioni"** e assicurati che risultino **"Pronta per
+   il test"** questi cinque permessi: `pages_read_engagement`,
+   `pages_show_list`, `read_insights`, `instagram_basic`,
+   `instagram_manage_insights`.
+3. Su [business.facebook.com/settings](https://business.facebook.com/settings),
+   verifica che la Pagina Facebook sia tra le **Pagine** del tuo Business
+   Portfolio (Account → Pagine) e che l'app sia collegata a quella Pagina
+   (Account → App → la tua app → scheda "Risorse collegate" → "Collega
+   risorse" → tipo "Pagina").
+4. Sempre nel Business Portfolio, vai su **Utenti → Utenti di sistema** →
+   **"+ Aggiungi"**, crea un utente di sistema con ruolo **Amministratore**.
+5. **Assegna quell'utente all'app**: Account → App → la tua app → scheda
+   "Persone" → "Assegna persone" → seleziona l'utente di sistema, ruolo
+   Amministratore (questo passaggio è facile da saltare, ma senza non si
+   può generare un token: l'errore è "Nessuna autorizzazione disponibile").
+6. Assegna anche la **Pagina** all'utente di sistema con accesso "Controllo
+   completo" (dalla pagina della Pagina in Business Settings, o da quella
+   dell'utente di sistema).
+7. Sull'utente di sistema, clicca **"Genera nuovo token"**: scegli la tua
+   app, scadenza **"Non scade mai"**, e spunta i cinque permessi del punto 2.
+   Copialo subito — Meta lo mostra **una sola volta**.
+8. Quel token dà accesso agli **oggetti** ma alcuni endpoint (come le insight
+   della Pagina) richiedono specificamente un **Page Access Token**: nel
+   Graph API Explorer, con il token del punto 7 nel campo "Token d'accesso",
+   interroga `<FACEBOOK_PAGE_ID>?fields=access_token` — il valore che torna
+   è il vero `META_ACCESS_TOKEN` da usare (eredita la scadenza "mai" del
+   token da cui deriva).
+9. `FACEBOOK_PAGE_ID` lo trovi nella stessa schermata di Business Settings
+   della Pagina (sezione Account → Pagine).
+10. `INSTAGRAM_ACCOUNT_ID` si ottiene interrogando, sempre nell'Explorer,
+    `<FACEBOOK_PAGE_ID>?fields=instagram_business_account`.
 
 Requisiti lato account: la Pagina Facebook deve esistere e l'account Instagram
 deve essere **Business o Creator** e collegato a quella Pagina. Un account
 Instagram personale non espone alcuna statistica.
+
+Se il report smette di arrivare, la causa più probabile è il token: il
+messaggio lo dice esplicitamente ("⚠️ Dati non recuperati").
 
 ### 3. I Secrets del repository
 
@@ -200,6 +224,19 @@ del messaggio e invio su Telegram; nessuno di essi tocca la rete.
 
 ## Limiti noti
 
+- **Facebook mostra solo statistiche aggregate, non i singoli post.** Leggere
+  l'elenco dei post di una Pagina (`/posts`, `/published_posts`, `/feed`)
+  richiede da Meta la funzionalità **"Page Public Content Access"**,
+  approvabile solo con una vera revisione dell'app (App Review) — anche per le
+  Pagine di cui si è amministratori. Finché non viene richiesta e approvata,
+  il report mostra per Facebook solo copertura, impression e interazioni
+  totali della settimana (lette dalle insight della Pagina, che restano
+  accessibili con il solo permesso `read_insights`), senza il dettaglio per
+  singolo post che invece è disponibile per Instagram. Per sbloccare anche il
+  dettaglio dei post, va richiesta la revisione da developers.facebook.com →
+  la propria app → **Autorizzazioni e funzionalità delle app** → **Page
+  Public Content Access** → **Richiedi**; il processo prevede la verifica
+  aziendale del Business Portfolio e spesso un video che dimostri l'uso reale.
 - **Le Storie non sono incluse.** Meta le espone su un endpoint separato e con
   una finestra di sole 24 ore, quindi un report settimanale ne vedrebbe al più
   l'ultimo giorno.

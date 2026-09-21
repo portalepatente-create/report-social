@@ -45,6 +45,14 @@ class PlatformReport:
     posts: list[PostStats] = field(default_factory=list)
     followers: int | None = None
     error: str | None = None
+    # False quando la piattaforma non espone i singoli post (es. Facebook,
+    # il cui accesso richiede la funzionalita "Page Public Content Access"
+    # approvata da Meta): in quel caso si mostrano solo le tre metriche
+    # aggregate qui sotto, lette dalle insight della Pagina.
+    posts_available: bool = True
+    aggregate_reach: int | None = None
+    aggregate_impressions: int | None = None
+    aggregate_engagement: int | None = None
 
     @property
     def total_likes(self) -> int:

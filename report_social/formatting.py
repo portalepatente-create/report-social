@@ -63,6 +63,24 @@ def _post_line(post: PostStats, timezone: ZoneInfo) -> str:
     return line
 
 
+def _aggregate_section(report: PlatformReport) -> str:
+    """Riga di riepilogo per le piattaforme senza elenco dei singoli post."""
+    pieces = []
+    if report.aggregate_impressions is not None:
+        pieces.append(f"📈 {format_number(report.aggregate_impressions)} impression")
+    if report.aggregate_reach is not None:
+        pieces.append(f"👀 {format_number(report.aggregate_reach)} copertura")
+    if report.aggregate_engagement is not None:
+        pieces.append(f"👍 {format_number(report.aggregate_engagement)} interazioni")
+
+    if not pieces:
+        return "Dati non disponibili per questo periodo."
+    return (
+        SEPARATOR.join(pieces)
+        + "\n<i>Dettaglio dei singoli post non disponibile per questa piattaforma.</i>"
+    )
+
+
 def _platform_section(report: PlatformReport, timezone: ZoneInfo) -> str:
     emoji = PLATFORM_EMOJI.get(report.platform, "📊")
     header = f"{emoji} <b>{escape(report.platform)}</b>"
@@ -72,6 +90,9 @@ def _platform_section(report: PlatformReport, timezone: ZoneInfo) -> str:
 
     if report.followers is not None:
         header += f" — {format_number(report.followers)} follower"
+
+    if not report.posts_available:
+        return f"{header}\n{_aggregate_section(report)}"
 
     if not report.posts:
         return f"{header}\nNessun post pubblicato in questo periodo."
@@ -114,9 +135,12 @@ def build_message(
     blocks.extend(_platform_section(report, timezone) for report in reports)
 
     published = [report for report in reports if not report.error]
-    total_posts = sum(len(report.posts) for report in published)
-    if total_posts:
-        total_interactions = sum(report.total_interactions for report in published)
+    total_posts = sum(len(report.posts) for report in published if report.posts_available)
+    total_interactions = sum(
+        report.total_interactions if report.posts_available else (report.aggregate_engagement or 0)
+        for report in published
+    )
+    if total_posts or total_interactions:
         blocks.append(
             f"✨ <b>Totale:</b> {format_number(total_posts)} post · "
             f"{format_number(total_interactions)} interazioni"

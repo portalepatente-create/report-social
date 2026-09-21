@@ -1,101 +1,59 @@
-"""Raccolta delle statistiche dei post di una Pagina Facebook."""
+"""Statistiche aggregate della Pagina Facebook (nessun dettaglio per singolo post).
+
+Leggere l'elenco dei singoli post di una Pagina (`/posts`, `/published_posts`,
+`/feed`) richiede da Meta la funzionalita "Page Public Content Access",
+approvabile solo con una vera revisione dell'app (App Review) -- anche per le
+Pagine di cui si e amministratori. Finche non viene richiesta e approvata,
+qui leggiamo solo le insight aggregate della Pagina nel periodo, che restano
+accessibili con il solo permesso `read_insights`.
+"""
 
 from __future__ import annotations
 
 import logging
 from datetime import datetime
 
-from .graph_api import GraphAPIError, GraphClient, fetch_insights, parse_timestamp
-from .models import PlatformReport, PostStats
+from .graph_api import GraphAPIError, GraphClient, fetch_insights
+from .models import PlatformReport
 
 LOGGER = logging.getLogger(__name__)
 
 PLATFORM = "Facebook"
 
-POST_FIELDS = ",".join(
-    [
-        "id",
-        "message",
-        "story",
-        "created_time",
-        "permalink_url",
-        "shares",
-        "likes.summary(true).limit(0)",
-        "comments.summary(true).limit(0)",
-        "attachments{media_type}",
-    ]
-)
-
-POST_METRICS = (
-    "post_impressions",
-    "post_impressions_unique",
-    "post_clicks",
-    "post_reactions_by_type_total",
-    "post_video_views",
+# Metriche "candidate": Meta le rinomina e le deprecia spesso a ogni versione
+# della Graph API. fetch_insights scarta da sola quelle non piu supportate
+# invece di far fallire l'intera chiamata.
+PAGE_METRICS = (
+    "page_impressions",
+    "page_impressions_unique",
+    "page_post_engagements",
 )
 
 
 def collect(client: GraphClient, page_id: str, start: datetime, end: datetime) -> PlatformReport:
-    """Restituisce il report Facebook per la finestra [start, end)."""
-    report = PlatformReport(platform=PLATFORM)
-    try:
-        raw_posts = client.get_all(
-            f"{page_id}/published_posts",
-            {
-                "fields": POST_FIELDS,
-                "since": int(start.timestamp()),
-                "until": int(end.timestamp()),
-                "limit": 50,
-            },
-        )
-        report.followers = _followers(client, page_id)
-    except GraphAPIError as exc:
-        LOGGER.error("Impossibile leggere i post della Pagina %s: %s", page_id, exc)
-        report.error = str(exc)
-        return report
+    """Restituisce le statistiche aggregate della Pagina per la finestra [start, end).
 
-    for raw in raw_posts:
-        published_at = parse_timestamp(raw["created_time"])
-        # `since`/`until` sono inclusivi sul bordo destro: filtriamo a mano.
-        if not start <= published_at < end:
-            continue
-        report.posts.append(_build_post(client, raw, published_at))
-
-    report.posts.sort(key=lambda p: p.published_at)
-    return report
-
-
-def _build_post(client: GraphClient, raw: dict, published_at: datetime) -> PostStats:
-    insights = fetch_insights(client, raw["id"], POST_METRICS)
-    reactions = insights.get("post_reactions_by_type_total", 0)
-    likes = reactions or _summary_count(raw.get("likes"))
-
-    return PostStats(
-        platform=PLATFORM,
-        post_id=raw["id"],
-        published_at=published_at,
-        caption=raw.get("message") or raw.get("story") or "",
-        permalink=raw.get("permalink_url"),
-        media_type=_media_type(raw),
-        likes=likes,
-        comments=_summary_count(raw.get("comments")),
-        shares=int((raw.get("shares") or {}).get("count", 0)),
-        reach=insights.get("post_impressions_unique", 0),
-        impressions=insights.get("post_impressions", 0),
-        clicks=insights.get("post_clicks", 0),
-        video_views=insights.get("post_video_views", 0),
+    Sia `_followers` che `fetch_insights` gestiscono da sole i propri errori
+    (li registrano nei log e restituiscono `None`/campi assenti), quindi qui
+    non serve un try/except: la raccolta di Facebook non fallisce mai del
+    tutto, degrada semplicemente ai singoli campi non disponibili.
+    """
+    report = PlatformReport(platform=PLATFORM, posts_available=False)
+    report.followers = _followers(client, page_id)
+    insights = fetch_insights(
+        client,
+        page_id,
+        PAGE_METRICS,
+        {
+            "period": "day",
+            "since": int(start.timestamp()),
+            "until": int(end.timestamp()),
+        },
     )
-
-
-def _summary_count(edge: dict | None) -> int:
-    return int(((edge or {}).get("summary") or {}).get("total_count", 0))
-
-
-def _media_type(raw: dict) -> str | None:
-    attachments = (raw.get("attachments") or {}).get("data") or []
-    if not attachments:
-        return None
-    return attachments[0].get("media_type")
+    report.aggregate_impressions = insights.get("page_impressions")
+    report.aggregate_reach = insights.get("page_impressions_unique")
+    report.aggregate_engagement = insights.get("page_post_engagements")
+    return report
 
 
 def _followers(client: GraphClient, page_id: str) -> int | None:
