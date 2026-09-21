@@ -110,10 +110,12 @@ def _platform_section(report: PlatformReport, timezone: ZoneInfo) -> str:
         totals.append(f"👀 {format_number(report.total_reach)} copertura")
 
     lines = [header, SEPARATOR.join(totals), ""]
-    for post in report.posts[:MAX_POSTS_LISTED]:
+    for index, post in enumerate(report.posts[:MAX_POSTS_LISTED]):
+        if index:
+            lines.append("")  # riga vuota tra un post e l'altro, per respiro visivo
         lines.append(_post_line(post, timezone))
     if len(report.posts) > MAX_POSTS_LISTED:
-        lines.append(f"… e altri {len(report.posts) - MAX_POSTS_LISTED} post.")
+        lines.append(f"\n… e altri {len(report.posts) - MAX_POSTS_LISTED} post.")
     return "\n".join(lines)
 
 
@@ -157,4 +159,16 @@ def build_message(
                 f"{format_number(best.interactions)} interazioni"
             )
 
+    if any(report.posts for report in reports):
+        blocks.append(_legend())
+
     return "\n\n".join(blocks)
+
+
+def _legend() -> str:
+    """Spiega le sigle usate nel messaggio, mostrata una sola volta in fondo."""
+    return (
+        "<i>👍 like/reazioni · 💬 commenti · 🔁 condivisioni · 🔖 salvataggi · "
+        "👀 copertura · 📈 impression · ▶️ views\n"
+        "ER = Engagement Rate, interazioni ÷ copertura</i>"
+    )
