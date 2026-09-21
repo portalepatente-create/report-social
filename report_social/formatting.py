@@ -12,6 +12,23 @@ PLATFORM_EMOJI = {"Facebook": "📘", "Instagram": "📷"}
 CAPTION_PREVIEW = 70
 MAX_POSTS_LISTED = 10
 
+# Etichetta mostrata accanto alla data di ogni post. Le chiavi coprono sia i
+# valori normalizzati da Instagram (IMAGE/VIDEO/CAROUSEL/REEL) sia quelli
+# grezzi che potrebbe restituire Facebook (photo/video/album/...), cosi la
+# funzione resta pronta a entrambe le piattaforme senza modifiche.
+MEDIA_TYPE_LABELS = {
+    "IMAGE": "🖼️ Foto",
+    "PHOTO": "🖼️ Foto",
+    "VIDEO": "🎥 Video",
+    "CAROUSEL": "🎠 Carosello",
+    "CAROUSEL_ALBUM": "🎠 Carosello",
+    "ALBUM": "🎠 Carosello",
+    "REEL": "🎬 Reel",
+    "REELS": "🎬 Reel",
+    "LINK": "🔗 Link",
+    "STATUS": "📝 Testo",
+}
+
 GIORNI = ("lun", "mar", "mer", "gio", "ven", "sab", "dom")
 SEPARATOR = " · "
 
@@ -42,6 +59,11 @@ def _post_line(post: PostStats, timezone: ZoneInfo) -> str:
     if post.permalink:
         label = f'<a href="{escape(post.permalink, quote=True)}">{label}</a>'
 
+    heading = f"<b>{format_date(post.published_at, timezone)}</b>"
+    kind = MEDIA_TYPE_LABELS.get((post.media_type or "").upper())
+    if kind:
+        heading += f" · <i>{kind}</i>"
+
     pieces = [
         f"👍 {format_number(post.likes)}",
         f"💬 {format_number(post.comments)}",
@@ -56,7 +78,7 @@ def _post_line(post: PostStats, timezone: ZoneInfo) -> str:
         pieces.append(f"▶️ {format_number(post.video_views)}")
 
     details = SEPARATOR.join(pieces)
-    line = f"• <b>{format_date(post.published_at, timezone)}</b> {label}\n  {details}"
+    line = f"• {heading} {label}\n  {details}"
     rate = post.engagement_rate
     if rate is not None:
         line += f" · ER {rate:.1f}%"

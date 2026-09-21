@@ -71,7 +71,7 @@ def _build_post(client: GraphClient, raw: dict, published_at: datetime) -> PostS
         published_at=published_at,
         caption=raw.get("caption") or "",
         permalink=raw.get("permalink"),
-        media_type=raw.get("media_product_type") or raw.get("media_type"),
+        media_type=_post_kind(raw),
         likes=int(raw.get("like_count") or 0),
         comments=int(raw.get("comments_count") or 0),
         shares=insights.get("shares", 0),
@@ -80,6 +80,22 @@ def _build_post(client: GraphClient, raw: dict, published_at: datetime) -> PostS
         impressions=views,
         video_views=views if is_video else 0,
     )
+
+
+def _post_kind(raw: dict) -> str | None:
+    """Tipo di contenuto (IMAGE/VIDEO/CAROUSEL/REEL), per l'etichetta nel report.
+
+    `media_product_type` da solo non basta: vale "FEED" sia per una foto
+    singola sia per un carosello, quindi va incrociato con `media_type`.
+    """
+    if raw.get("media_product_type") == "REELS":
+        return "REEL"
+    media_type = raw.get("media_type")
+    if media_type == "CAROUSEL_ALBUM":
+        return "CAROUSEL"
+    if media_type in ("IMAGE", "VIDEO"):
+        return media_type
+    return None
 
 
 def _followers(client: GraphClient, account_id: str) -> int | None:

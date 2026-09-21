@@ -161,3 +161,55 @@ def test_instagram_niente_video_views_per_le_foto():
     assert post.video_views == 0
     assert post.impressions == 300
     assert post.engagement_rate is None  # reach sconosciuta -> niente percentuale
+
+
+def test_instagram_riconosce_il_carosello_anche_se_e_in_feed():
+    # media_product_type vale "FEED" sia per una foto singola sia per un
+    # carosello: bisogna guardare anche media_type per distinguerli.
+    client = FakeGraphClient(
+        {
+            "ig_1/media": {
+                "data": [
+                    {
+                        "id": "media_3",
+                        "media_type": "CAROUSEL_ALBUM",
+                        "media_product_type": "FEED",
+                        "timestamp": "2026-09-16T09:00:00+0000",
+                        "like_count": 5,
+                        "comments_count": 1,
+                    }
+                ]
+            },
+            "media_3/insights": {"data": []},
+            "ig_1": {"followers_count": 1},
+        }
+    )
+
+    (post,) = instagram.collect(client, "ig_1", START, END).posts
+
+    assert post.media_type == "CAROUSEL"
+
+
+def test_instagram_riconosce_il_reel_anche_se_media_type_e_video():
+    client = FakeGraphClient(
+        {
+            "ig_1/media": {
+                "data": [
+                    {
+                        "id": "media_4",
+                        "media_type": "VIDEO",
+                        "media_product_type": "REELS",
+                        "timestamp": "2026-09-16T09:00:00+0000",
+                        "like_count": 0,
+                        "comments_count": 0,
+                    }
+                ]
+            },
+            "media_4/insights": {"data": []},
+            "ig_1": {"followers_count": 1},
+        }
+    )
+
+    (post,) = instagram.collect(client, "ig_1", START, END).posts
+
+    assert post.media_type == "REEL"

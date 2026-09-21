@@ -146,3 +146,19 @@ def test_totale_include_l_engagement_aggregato():
 
     assert "Totale:" in messaggio
     assert "61 interazioni" in messaggio  # 11 (ig) + 50 (fb aggregato)
+
+
+def test_il_tipo_di_post_compare_accanto_alla_data():
+    report = PlatformReport(platform="Instagram", posts=[_post(media_type="REEL")])
+
+    messaggio = build_message([report], START, END, TZ)
+
+    assert "🎬 Reel" in messaggio
+
+
+def test_senza_tipo_di_post_non_compare_etichetta():
+    report = PlatformReport(platform="Instagram", posts=[_post(media_type=None)])
+
+    messaggio = build_message([report], START, END, TZ)
+
+    assert "🎬" not in messaggio and "🖼️" not in messaggio and "🎥" not in messaggio
